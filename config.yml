@@ -1,0 +1,11 @@
+# Add as many courses as needed. Each course can also contain multiple class
+# numbers. Keep term, course number, and class numbers in quotation marks.
+default_level: under
+project_name: uw-section-avail
+
+courses:
+  - term: "1269"
+    subject: AFM
+    course_number: "482"
+    class_numbers:
+      - "3453"

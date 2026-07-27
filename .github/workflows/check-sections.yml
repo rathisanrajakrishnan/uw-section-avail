@@ -1,0 +1,86 @@
+name: Check Waterloo sections
+
+on:
+  schedule:
+    # GitHub cron uses UTC. Trigger at :15 and :45 every hour, then the
+    # first step limits actual checks to 8:15 AM–7:45 PM America/Toronto.
+    # This approach automatically handles Eastern daylight-saving changes.
+    - cron: "15,45 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: uw-section-avail
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Confirm scheduled check window
+        id: window
+        shell: bash
+        run: |
+          # Manual runs should always proceed, regardless of the time.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run requested; continuing."
+            exit 0
+          fi
+
+          current_time="$(TZ=America/Toronto date +%H:%M)"
+          current_hour="$(TZ=America/Toronto date +%H)"
+          current_minute="$(TZ=America/Toronto date +%M)"
+          minutes_since_midnight=$((10#$current_hour * 60 + 10#$current_minute))
+
+          # Run from 8:15 AM through 7:45 PM local time. The next possible
+          # check would be 8:15 PM, which is outside the requested 8 PM limit.
+          if (( minutes_since_midnight >= 495 && minutes_since_midnight < 1200 )); then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Toronto time is $current_time; running the section check."
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Toronto time is $current_time; outside the 8:15 AM–8:00 PM window."
+          fi
+
+      - name: Check out repository
+        if: steps.window.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        if: steps.window.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.window.outputs.should_run == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Check section availability
+        if: steps.window.outputs.should_run == 'true'
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: python monitor.py
+
+      - name: Save availability state
+        if: steps.window.outputs.should_run == 'true'
+        run: |
+          if git diff --quiet -- state.json; then
+            echo "No state change to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git commit -m "Update section availability state"
+          git push
