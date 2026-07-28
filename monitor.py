@@ -157,34 +157,98 @@ def find_section_row(soup: BeautifulSoup, class_number: str) -> Tag | None:
     return None
 
 
-def parse_section(row: Tag, course: Course, class_number: str, url: str) -> Section:
-    cells = row_cells(row)
-    if len(cells) < 11:
+TIME_PATTERN = re.compile(
+    r"^\d{1,2}:\d{2}-\d{1,2}:\d{2}[A-Za-z]*$"
+)
+
+
+def parse_section(
+    row: Tag,
+    course: Course,
+    class_number: str,
+    url: str,
+) -> Section:
+    """
+    Parse a Waterloo section row.
+
+    Waterloo's Schedule of Classes uses old and occasionally malformed HTML.
+    The number and arrangement of <td> elements is therefore not reliable.
+
+    The last four integer values before the class time are consistently:
+
+        enrolment capacity
+        enrolment total
+        waitlist capacity
+        waitlist total
+    """
+    row_text = row.get_text(" ", strip=True)
+    tokens = row_text.split()
+
+    if len(tokens) < 7:
         raise ValueError(
-            f"Unexpected Waterloo table layout for {course.label} class {class_number}: {cells!r}"
+            f"Unexpected Waterloo row for {course.label} "
+            f"class {class_number}: {row_text!r}"
         )
 
-    cap = integer(cells[7])
-    total = integer(cells[8])
-    wait_cap = integer(cells[9])
-    wait_total = integer(cells[10])
-
-    if cap is None or total is None:
+    if tokens[0] != class_number:
         raise ValueError(
-            f"Could not read enrolment capacity/total for {course.label} "
-            f"class {class_number}: {cells!r}"
+            f"Expected class {class_number}, but parsed row beginning "
+            f"with {tokens[0]!r}: {row_text!r}"
         )
+
+    component = tokens[1]
+    section = tokens[2]
+
+    time_index: int | None = None
+
+    for index, token in enumerate(tokens):
+        if TIME_PATTERN.fullmatch(token):
+            time_index = index
+            break
+
+    if time_index is None:
+        raise ValueError(
+            f"Could not locate the class time for {course.label} "
+            f"class {class_number}: {row_text!r}"
+        )
+
+    numeric_values: list[int] = []
+
+    for token in tokens[3:time_index]:
+        value = integer(token)
+        if value is not None:
+            numeric_values.append(value)
+
+    if len(numeric_values) < 4:
+        raise ValueError(
+            f"Could not locate the four enrolment values for "
+            f"{course.label} class {class_number}: "
+            f"{row_text!r}"
+        )
+
+    enrolment_capacity, enrolment_total, waitlist_capacity, waitlist_total = (
+        numeric_values[-4:]
+    )
+
+    if enrolment_total > enrolment_capacity:
+        raise ValueError(
+            f"Parsed enrolment total {enrolment_total} greater than "
+            f"capacity {enrolment_capacity} for {course.label} "
+            f"class {class_number}. Row: {row_text!r}"
+        )
+
+    details = " ".join(tokens[time_index:])
 
     return Section(
         course=course,
         class_number=class_number,
-        component=cells[1],
-        section=cells[2],
-        enrolment_capacity=cap,
-        enrolment_total=total,
-        waitlist_capacity=wait_cap,
-        waitlist_total=wait_total,
-        details=" | ".join(cells[11:]),
+        component=component,
+        section=section,
+        enrolment_capacity=enrolment_capacity,
+        enrolment_total=enrolment_total,
+        waitlist_capacity=waitlist_capacity,
+        waitlist_total=waitlist_total,
+        details=details,
         url=url,
     )
 
@@ -302,8 +366,12 @@ def main() -> int:
 
         status = "OPEN" if item.is_open else "FULL"
         print(
-            f"{item.course.term} {item.course.label} class {item.class_number}: "
-            f"{status} — {item.enrolment_total}/{item.enrolment_capacity} enrolled"
+            f"{item.course.term} {item.course.label} "
+            f"class {item.class_number}: {status} — "
+            f"capacity={item.enrolment_capacity}, "
+            f"enrolled={item.enrolment_total}, "
+            f"available={item.seats_available}, "
+            f"waitlist={item.waitlist_total}/{item.waitlist_capacity}"
         )
 
     # Only save an open state after Gmail accepts the notification, allowing a
