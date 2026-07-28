@@ -1,45 +1,52 @@
 # uw-section-avail
 
-Checks multiple University of Waterloo courses every 30 minutes from **8:05 AM through 8:05 PM America/Toronto time** and sends a Gmail notification when a monitored class changes from **full** to **open**.
+This README has been updated for the **cron-job.org** workflow.
 
-The included example configuration monitors:
+## Summary
 
-- Term `1269`, `AFM 482`, class `3453`
-- Term `1269`, `CLAS 104`, class `3622`
-- Term `1259`, `CLAS 202`, class `8374`
+-   Monitors one or more University of Waterloo class sections.
+-   Supports multiple terms, courses, class numbers, and notification
+    email addresses.
+-   Sends an email **only when a monitored section changes from full to
+    open**.
+-   Uses **GitHub Actions** to run the monitor.
+-   Uses **cron-job.org** (instead of GitHub schedules) to trigger the
+    workflow every 30 minutes.
 
-## 1. Create the GitHub repository
+## GitHub workflow
 
-Create a GitHub repository named **`uw-section-avail`** and upload every file from this folder, including the hidden `.github` folder. Keep `state.json`; it prevents duplicate emails while a section remains open.
+Your workflow should use only:
 
-From Terminal, you can instead run:
-
-```bash
-git init
-git add .
-git commit -m "Initial section monitor"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/uw-section-avail.git
-git push -u origin main
+``` yaml
+on:
+  workflow_dispatch:
 ```
 
-## 2. Add Gmail credentials
+Do **not** include a GitHub `schedule:` trigger when using cron-job.org.
 
-Use a Gmail account with Google 2-Step Verification enabled and create a 16-character Google App Password. Do not use your regular Gmail password.
+## GitHub secrets
 
-In GitHub, open **Settings → Secrets and variables → Actions → New repository secret**, then add:
+Create these repository secrets:
 
-| Secret | Value |
-|---|---|
-| `GMAIL_ADDRESS` | Gmail address used to send the notification |
-| `GMAIL_APP_PASSWORD` | 16-character Google App Password |
-| `NOTIFY_EMAIL` | Address that receives notifications; it may be the same Gmail address, or you can enter multiple split by a comma, no spaces |
+  Secret               Purpose
+  -------------------- -------------------------------------------------------
+  GMAIL_ADDRESS        Gmail account used to send notifications
+  GMAIL_APP_PASSWORD   Gmail App Password
+  NOTIFY_EMAIL         One or more comma-separated recipient email addresses
 
-## 3. Edit the monitored courses
+Example:
 
-Open `config.yml`. Add one block under `courses` for every course. Each course can contain one or several class numbers:
+``` text
+me@gmail.com,friend@gmail.com,parent@uwaterloo.ca
+```
 
-```yaml
+## Configuring monitored courses
+
+Edit `config.yml`.
+
+Example:
+
+``` yaml
 default_level: under
 project_name: uw-section-avail
 
@@ -49,7 +56,6 @@ courses:
     course_number: "482"
     class_numbers:
       - "3453"
-      - "3454"
 
   - term: "1269"
     subject: CLAS
@@ -64,30 +70,115 @@ courses:
       - "8374"
 ```
 
-Class numbers are the values in the first **Class** column, not labels such as `LEC 002`.
+Each course can contain one or many class numbers.
 
-To remove a course, delete its complete block. Keep the indentation exactly as shown.
+## Manual testing
 
-## 4. Test it
+Open **Actions → Check Waterloo sections → Run workflow**.
 
-1. Open the repository's **Actions** tab.
-2. Select **Check Waterloo sections**.
-3. Click **Run workflow**.
-4. Open the run to see the status of every configured section.
+A notification is sent only if a monitored section has just changed from
+**full** to **open**.
 
-Manual runs proceed at any time. Scheduled runs occur at **8:05 AM, 8:35 AM, 9:05 AM, ... through 8:05 PM** in `America/Toronto`, automatically accounting for daylight-saving changes. GitHub may start scheduled workflows a few minutes late.
+To temporarily test email delivery, uncomment:
+
+``` python
+# send_email(sections, project_name)
+# print("Test email sent.")
+```
+
+Run the workflow once, verify the email arrives, then comment those
+lines again.
+
+## Scheduling with cron-job.org
+
+1.  Create a **fine-grained GitHub Personal Access Token**.
+2.  Give it **Actions: Read and write** permission for this repository.
+3.  Create a cron-job.org HTTP job.
+
+Endpoint:
+
+``` text
+https://api.github.com/repos/YOUR_USERNAME/uw-section-avail/actions/workflows/check-sections.yml/dispatches
+```
+
+Method:
+
+``` text
+POST
+```
+
+Headers:
+
+``` text
+Authorization: Bearer YOUR_TOKEN
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2022-11-28
+Content-Type: application/json
+```
+
+Body:
+
+``` json
+{
+  "ref": "main"
+}
+```
+
+Timezone:
+
+``` text
+America/Toronto
+```
+
+Create two cron jobs.
+
+Job 1:
+
+``` text
+5 8-20 * * *
+```
+
+Runs:
+
+``` text
+8:05 AM, 9:05 AM, ..., 8:05 PM
+```
+
+Job 2:
+
+``` text
+35 8-19 * * *
+```
+
+Runs:
+
+``` text
+8:35 AM, 9:35 AM, ..., 7:35 PM
+```
 
 ## Notification behaviour
 
-- Full → open: sends one email.
-- Still open: does not send duplicate emails.
-- Open → full: updates the saved state.
-- Full → open again: sends another email.
-- Multiple sections open in the same check: combines them into one email.
-- Website, parsing, or email error: the workflow fails visibly instead of silently reporting a wrong result.
+-   Full → Full: no email
+-   Full → Open: email
+-   Open → Open: no duplicate email
+-   Open → Full: state updated
+-   Full again → Open again: email again
 
-## Important
+## state.json
 
-- The monitor only reports availability; it cannot enrol or reserve a seat.
-- A visible seat may still be unavailable to you because of reserves, eligibility rules, holds, or enrolment timing.
-- When replacing an older single-course version, upload the new `monitor.py`, `config.yml`, and `README.md`. Resetting `state.json` to `{}` is recommended because the new version uses unique state keys for each term/course/class combination.
+`state.json` stores the previous status of every monitored section to
+prevent duplicate notifications.
+
+Reset it to:
+
+``` json
+{}
+```
+
+only if you intentionally want to forget all previous section states.
+
+## Security
+
+-   Never commit Gmail credentials.
+-   Never commit GitHub tokens.
+-   Restrict the GitHub token to this repository only.
