@@ -1,6 +1,6 @@
 # uw-section-avail
 
-Checks multiple University of Waterloo courses every 30 minutes from **8:15 AM through 7:45 PM America/Toronto time** and sends a Gmail notification when a monitored class changes from **full** to **open**.
+Checks multiple University of Waterloo courses every 30 minutes from **8:05 AM through 8:05 PM America/Toronto time** and sends a Gmail notification when a monitored class changes from **full** to **open**.
 
 The included example configuration monitors:
 
@@ -75,7 +75,7 @@ To remove a course, delete its complete block. Keep the indentation exactly as s
 3. Click **Run workflow**.
 4. Open the run to see the status of every configured section.
 
-Manual runs proceed at any time. Scheduled runs occur at **8:15 AM, 8:45 AM, 9:15 AM, ... through 7:45 PM** in `America/Toronto`, automatically accounting for daylight-saving changes. GitHub may start scheduled workflows a few minutes late.
+Manual runs proceed at any time. Scheduled runs occur at **8:05 AM, 8:35 AM, 9:05 AM, ... through 8:05 PM** in `America/Toronto`, automatically accounting for daylight-saving changes. GitHub may start scheduled workflows a few minutes late.
 
 ## Notification behaviour
 
