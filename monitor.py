@@ -213,9 +213,15 @@ def fetch_course_sections(course: Course) -> list[Section]:
     return sections
 
 
-def gmail_settings() -> tuple[str, str, str]:
+def gmail_settings() -> tuple[str, list[str], str]:
     sender = os.environ.get("GMAIL_ADDRESS", "").strip()
-    recipient = os.environ.get("NOTIFY_EMAIL", sender).strip()
+
+    recipients = [
+        email.strip()
+        for email in os.environ.get("NOTIFY_EMAIL", sender).split(",")
+        if email.strip()
+    ]
+
     password = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "")
 
     missing = [
@@ -223,21 +229,23 @@ def gmail_settings() -> tuple[str, str, str]:
         for name, value in {
             "GMAIL_ADDRESS": sender,
             "GMAIL_APP_PASSWORD": password,
-            "NOTIFY_EMAIL/GMAIL_ADDRESS": recipient,
+            "NOTIFY_EMAIL/GMAIL_ADDRESS": recipients,
         }.items()
         if not value
     ]
+
     if missing:
         raise RuntimeError("Missing email setting(s): " + ", ".join(missing))
-    return sender, recipient, password
+
+    return sender, recipients, password
 
 
 def send_email(opened: list[Section], project_name: str) -> None:
-    sender, recipient, password = gmail_settings()
+    sender, recipients, password = gmail_settings()
 
     message = EmailMessage()
     message["From"] = sender
-    message["To"] = recipient
+    message["To"] = ", ".join(recipients)
     message["Subject"] = f"[{project_name}] {len(opened)} Waterloo section(s) open"
 
     lines = ["The following monitored Waterloo section(s) are open:", ""]
@@ -255,11 +263,12 @@ def send_email(opened: list[Section], project_name: str) -> None:
                 "",
             ]
         )
+
     message.set_content("\n".join(lines))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as smtp:
         smtp.login(sender, password)
-        smtp.send_message(message)
+        smtp.send_message(message, from_addr=sender, to_addrs=recipients)
 
 
 def main() -> int:

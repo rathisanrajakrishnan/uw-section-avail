@@ -33,7 +33,7 @@ In GitHub, open **Settings → Secrets and variables → Actions → New reposit
 |---|---|
 | `GMAIL_ADDRESS` | Gmail address used to send the notification |
 | `GMAIL_APP_PASSWORD` | 16-character Google App Password |
-| `NOTIFY_EMAIL` | Address that receives notifications; it may be the same Gmail address |
+| `NOTIFY_EMAIL` | Address that receives notifications; it may be the same Gmail address, or you can enter multiple split by a comma, no spaces |
 
 ## 3. Edit the monitored courses
 
