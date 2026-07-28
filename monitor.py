@@ -377,20 +377,20 @@ def main() -> int:
     # Only save an open state after Gmail accepts the notification, allowing a
     # later run to retry if sending fails.
 
-    ## Test email
-    send_email(sections, project_name)
-    print("Test email sent.")
+    ## Test email, uncomment if statement to send a test email to the configured recipients.
+    # send_email(sections, project_name)
+    # print("Test email sent.")
 
-    # if newly_opened:
-    #     send_email(newly_opened, project_name)
-    #     print(
-    #         "Email sent for: "
-    #         + ", ".join(
-    #             f"{item.course.label} class {item.class_number}" for item in newly_opened
-    #         )
-    #     )
-    # else:
-    #     print("No newly opened monitored sections.")
+    if newly_opened:
+        send_email(newly_opened, project_name)
+        print(
+            "Email sent for: "
+            + ", ".join(
+                f"{item.course.label} class {item.class_number}" for item in newly_opened
+            )
+        )
+    else:
+        print("No newly opened monitored sections.")
 
     save_state(STATE_PATH, current_state)
     return 0
