@@ -1,7 +1,5 @@
 # uw-section-avail
 
-This README has been updated for the **cron-job.org** workflow.
-
 ## Summary
 
 - Monitors one or more University of Waterloo class sections.
