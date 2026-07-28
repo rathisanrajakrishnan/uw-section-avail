@@ -1,1 +1,12 @@
-{}
+{
+  "1269:AFM:482:3453": {
+    "class_number": "3453",
+    "course_number": "482",
+    "enrolment_capacity": 60,
+    "enrolment_total": 0,
+    "open": true,
+    "seats_available": 60,
+    "subject": "AFM",
+    "term": "1269"
+  }
+}
