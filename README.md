@@ -4,20 +4,17 @@ This README has been updated for the **cron-job.org** workflow.
 
 ## Summary
 
--   Monitors one or more University of Waterloo class sections.
--   Supports multiple terms, courses, class numbers, and notification
-    email addresses.
--   Sends an email **only when a monitored section changes from full to
-    open**.
--   Uses **GitHub Actions** to run the monitor.
--   Uses **cron-job.org** (instead of GitHub schedules) to trigger the
-    workflow every 30 minutes.
+- Monitors one or more University of Waterloo class sections.
+- Supports multiple terms, courses, class numbers, and notification email addresses.
+- Sends an email **only when a monitored section changes from full to open**.
+- Uses **GitHub Actions** to run the monitor.
+- Uses **cron-job.org** instead of GitHub schedules to trigger the workflow every 30 minutes.
 
 ## GitHub workflow
 
 Your workflow should use only:
 
-``` yaml
+```yaml
 on:
   workflow_dispatch:
 ```
@@ -28,15 +25,15 @@ Do **not** include a GitHub `schedule:` trigger when using cron-job.org.
 
 Create these repository secrets:
 
-  Secret               Purpose
-  -------------------- -------------------------------------------------------
-  GMAIL_ADDRESS        Gmail account used to send notifications
-  GMAIL_APP_PASSWORD   Gmail App Password
-  NOTIFY_EMAIL         One or more comma-separated recipient email addresses
+| Secret | Purpose |
+|---|---|
+| `GMAIL_ADDRESS` | Gmail account used to send notifications |
+| `GMAIL_APP_PASSWORD` | Gmail App Password for the sending account |
+| `NOTIFY_EMAIL` | One or more comma-separated recipient email addresses |
 
 Example:
 
-``` text
+```text
 me@gmail.com,friend@gmail.com,parent@uwaterloo.ca
 ```
 
@@ -46,7 +43,7 @@ Edit `config.yml`.
 
 Example:
 
-``` yaml
+```yaml
 default_level: under
 project_name: uw-section-avail
 
@@ -76,40 +73,38 @@ Each course can contain one or many class numbers.
 
 Open **Actions → Check Waterloo sections → Run workflow**.
 
-A notification is sent only if a monitored section has just changed from
-**full** to **open**.
+A notification is sent only if a monitored section has just changed from **full** to **open**.
 
 To temporarily test email delivery, uncomment:
 
-``` python
+```python
 # send_email(sections, project_name)
 # print("Test email sent.")
 ```
 
-Run the workflow once, verify the email arrives, then comment those
-lines again.
+Run the workflow once, verify the email arrives, then comment those lines again.
 
 ## Scheduling with cron-job.org
 
-1.  Create a **fine-grained GitHub Personal Access Token**.
-2.  Give it **Actions: Read and write** permission for this repository.
-3.  Create a cron-job.org HTTP job.
+1. Create a **fine-grained GitHub Personal Access Token**.
+2. Give it **Actions: Read and write** permission for this repository.
+3. Create a cron-job.org HTTP job.
 
 Endpoint:
 
-``` text
+```text
 https://api.github.com/repos/YOUR_USERNAME/uw-section-avail/actions/workflows/check-sections.yml/dispatches
 ```
 
 Method:
 
-``` text
+```text
 POST
 ```
 
 Headers:
 
-``` text
+```text
 Authorization: Bearer YOUR_TOKEN
 Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2022-11-28
@@ -118,7 +113,7 @@ Content-Type: application/json
 
 Body:
 
-``` json
+```json
 {
   "ref": "main"
 }
@@ -126,52 +121,51 @@ Body:
 
 Timezone:
 
-``` text
+```text
 America/Toronto
 ```
 
 Create two cron jobs.
 
-Job 1:
+### Job 1
 
-``` text
+```text
 5 8-20 * * *
 ```
 
 Runs:
 
-``` text
+```text
 8:05 AM, 9:05 AM, ..., 8:05 PM
 ```
 
-Job 2:
+### Job 2
 
-``` text
+```text
 35 8-19 * * *
 ```
 
 Runs:
 
-``` text
+```text
 8:35 AM, 9:35 AM, ..., 7:35 PM
 ```
 
 ## Notification behaviour
 
--   Full → Full: no email
--   Full → Open: email
--   Open → Open: no duplicate email
--   Open → Full: state updated
--   Full again → Open again: email again
+- Full → Full: no email
+- Full → Open: email
+- Open → Open: no duplicate email
+- Open → Full: state updated
+- Full again → Open again: email again
 
 ## state.json
 
-`state.json` stores the previous status of every monitored section to
-prevent duplicate notifications.
+`state.json` stores the previous status of every monitored section to prevent duplicate notifications.
 
 Reset it to:
 
-``` json
+```json
 {}
 ```
 
@@ -179,6 +173,6 @@ only if you intentionally want to forget all previous section states.
 
 ## Security
 
--   Never commit Gmail credentials.
--   Never commit GitHub tokens.
--   Restrict the GitHub token to this repository only.
+- Never commit Gmail credentials.
+- Never commit GitHub tokens.
+- Restrict the GitHub token to this repository only.
