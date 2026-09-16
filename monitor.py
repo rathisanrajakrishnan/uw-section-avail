@@ -171,15 +171,19 @@ def parse_section(
     """
     Parse a Waterloo section row.
 
-    Waterloo's Schedule of Classes uses old and occasionally malformed HTML.
-    The number and arrangement of <td> elements is therefore not reliable.
+    Waterloo's Schedule of Classes uses old and occasionally malformed HTML,
+    so the number and arrangement of <td> elements is not always reliable.
 
-    The last four integer values before the class time are consistently:
+    For sections with a meeting time, the last four integer values before
+    the time are:
 
         enrolment capacity
         enrolment total
         waitlist capacity
         waitlist total
+
+    Online/asynchronous sections may have no meeting time at all. In that
+    case, the last four integer values in the row are used instead.
     """
     row_text = row.get_text(" ", strip=True)
     tokens = row_text.split()
@@ -199,6 +203,7 @@ def parse_section(
     component = tokens[1]
     section = tokens[2]
 
+    # Look for a normal scheduled meeting time.
     time_index: int | None = None
 
     for index, token in enumerate(tokens):
@@ -206,15 +211,19 @@ def parse_section(
             time_index = index
             break
 
-    if time_index is None:
-        raise ValueError(
-            f"Could not locate the class time for {course.label} "
-            f"class {class_number}: {row_text!r}"
-        )
+    # If a meeting time exists, only inspect values before that time.
+    # Otherwise, inspect the entire remainder of the row. This handles
+    # online/asynchronous sections whose Time/Days/Date fields are blank.
+    if time_index is not None:
+        enrolment_tokens = tokens[3:time_index]
+        details = " ".join(tokens[time_index:])
+    else:
+        enrolment_tokens = tokens[3:]
+        details = "Online / no scheduled meeting time"
 
     numeric_values: list[int] = []
 
-    for token in tokens[3:time_index]:
+    for token in enrolment_tokens:
         value = integer(token)
         if value is not None:
             numeric_values.append(value)
@@ -226,6 +235,8 @@ def parse_section(
             f"{row_text!r}"
         )
 
+    # The final four numeric values in the enrolment portion of the row are
+    # Enrl Cap, Enrl Tot, Wait Cap, and Wait Tot.
     enrolment_capacity, enrolment_total, waitlist_capacity, waitlist_total = (
         numeric_values[-4:]
     )
@@ -236,8 +247,6 @@ def parse_section(
             f"capacity {enrolment_capacity} for {course.label} "
             f"class {class_number}. Row: {row_text!r}"
         )
-
-    details = " ".join(tokens[time_index:])
 
     return Section(
         course=course,
