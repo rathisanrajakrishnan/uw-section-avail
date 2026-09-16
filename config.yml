@@ -5,7 +5,7 @@ project_name: uw-section-avail
 
 courses:
   - term: "1269"
-    subject: AFM
-    course_number: "482"
+    subject: HEALTH
+    course_number: "105"
     class_numbers:
-      - "3453"
+      - "3010"
