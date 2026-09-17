@@ -3,9 +3,9 @@
     "class_number": "3010",
     "course_number": "105",
     "enrolment_capacity": 250,
-    "enrolment_total": 250,
-    "open": false,
-    "seats_available": 0,
+    "enrolment_total": 249,
+    "open": true,
+    "seats_available": 1,
     "subject": "HEALTH",
     "term": "1269"
   }
